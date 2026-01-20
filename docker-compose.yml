@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  smartmarks:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartmarks-frontend
+    ports:
+      - "3001:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - smartmarks-network
+
+networks:
+  smartmarks-network:
+    driver: bridge

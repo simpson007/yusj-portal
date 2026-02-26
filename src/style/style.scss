@@ -30,10 +30,12 @@ p {
   }
 }
 
-// 链接悬停效果
+// 链接悬停效果 - 渐变高亮
 a:hover {
-  color: rgb(57, 159, 255);
-  text-decoration: underline;
+  color: var(--accent-color-wuxia);
+  text-decoration: none;
+  text-shadow: 0 0 8px rgba(242, 230, 216, 0.4);
+  transition: color 0.3s ease;
 }
 
 // 字体文件
@@ -49,6 +51,18 @@ a:hover {
   src: url("/font/UnidreamLED.ttf") format("truetype");
 }
 
+// 引入思源宋体（衬线体） - 用于格言、一言等古风元素
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600&display=swap');
+
+// 引入霞鹜文楷（书法字体） - 用于左侧格言的国风展示
+@import url('https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/style.css');
+
+// 进阶：定义强调色
+:root {
+  --accent-color-wuxia: #F2E6D8;
+  /* 米金色 */
+}
+
 // 基础样式
 #app {
   position: fixed;
@@ -59,18 +73,32 @@ a:hover {
   z-index: 0;
 }
 
-// 卡片样式
+// 卡片样式 - 增强玻璃拟态 - 黑曜石质感
 .cards {
-  border-radius: 6px;
-  background-color: #00000040;
-  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  /* 加大圆角 */
+  background: rgba(20, 20, 20, 0.4);
+  /* 更深的半透明背景 */
+  backdrop-filter: blur(15px);
+  /* 增强模糊 */
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  /* 极细边框 */
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  color: #ffffff;
   transform: scale(1);
-  transition:
-    backdrop-filter 0.3s,
-    transform 0.3s;
+
   &:hover {
-    transform: scale(1.01);
+    transform: scale(1.02) translateY(-2px);
+    background: rgba(40, 45, 50, 0.6);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
   }
+
   &:active {
     transform: scale(0.98);
   }
@@ -83,18 +111,20 @@ a:hover {
   text-overflow: ellipsis;
 }
 
-// 弹窗样式
+// 弹窗样式 - 增强玻璃拟态
 .el-message {
-  --el-message-bg-color: #00000040 !important;
+  --el-message-bg-color: rgba(255, 255, 255, 0.1) !important;
   --el-message-text-color: #efefef !important;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   border-radius: 25px !important;
-  border-color: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
 
   .el-message__badge {
     display: none;
   }
+
   .el-message__content {
     white-space: nowrap;
   }
@@ -105,11 +135,13 @@ a:hover {
   .el-progress-bar__outer {
     border-radius: 6px;
     background-color: #00000020;
+
     .el-progress-bar__inner {
       background-color: #efefef;
       border-radius: 6px;
       text-align: center;
       font-family: "UnidreamLED";
+
       span {
         color: #564d59;
         font-size: 0.9rem;
@@ -129,12 +161,14 @@ a:hover {
   border-radius: 8px !important;
   border: 1px solid transparent !important;
   background-color: transparent !important;
+
   .el-card__header {
     font-weight: bold;
     padding: 16px 20px !important;
     background-color: #ffffff30 !important;
     border-bottom: 1px solid transparent !important;
   }
+
   .el-card__body {
     padding: 0 !important;
     background-color: #ffffff10 !important;
@@ -157,6 +191,7 @@ a:hover {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -167,6 +202,7 @@ a:hover {
     filter: blur(20px) brightness(0.3);
     transform: scale(1.6);
   }
+
   to {
     filter: blur(0) brightness(1);
     transform: scale(1);
@@ -177,6 +213,7 @@ a:hover {
   from {
     transform: scale(1.2);
   }
+
   to {
     transform: scale(1);
   }

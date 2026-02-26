@@ -1,5 +1,9 @@
 <template>
   <div class="weather" v-if="weatherData.adCode.city && weatherData.weather.weather">
+    <!-- 天气图标 -->
+    <div class="weather-icon-wrapper">
+      <component :is="weatherIcon" theme="filled" size="24" fill="#efefef" />
+    </div>
     <span>{{ weatherData.adCode.city }}&nbsp;</span>
     <span>{{ weatherData.weather.weather }}&nbsp;</span>
     <span>{{ weatherData.weather.temperature }}℃</span>
@@ -18,36 +22,18 @@
 </template>
 
 <script setup>
-import {
-  getQWeatherGeo,
-  getQWeatherNow,
-  getWttrWeather,
-  getCachedWeather,
-  setCachedWeather,
-} from "@/api";
-import { Error } from "@icon-park/vue-next";
-
-// 和风天气配置
-const qweatherHost = import.meta.env.VITE_QWEATHER_HOST;
-// 检查是否配置了认证信息（JWT 或 API Key）
-const hasJWTConfig =
-  import.meta.env.VITE_QWEATHER_PRIVATE_KEY &&
-  import.meta.env.VITE_QWEATHER_KEY_ID &&
-  import.meta.env.VITE_QWEATHER_PROJECT_ID;
-const hasAPIKeyConfig = import.meta.env.VITE_QWEATHER_API_KEY;
-const hasQWeatherConfig = qweatherHost && (hasJWTConfig || hasAPIKeyConfig);
-
-// 调试日志：显示配置状态
-console.log("=== 和风天气配置检测 ===");
-console.log("VITE_QWEATHER_HOST:", qweatherHost ? "✅ 已配置" : "❌ 未配置");
-console.log("VITE_QWEATHER_PRIVATE_KEY:", import.meta.env.VITE_QWEATHER_PRIVATE_KEY ? "✅ 已配置" : "❌ 未配置");
-console.log("VITE_QWEATHER_KEY_ID:", import.meta.env.VITE_QWEATHER_KEY_ID ? "✅ 已配置" : "❌ 未配置");
-console.log("VITE_QWEATHER_PROJECT_ID:", import.meta.env.VITE_QWEATHER_PROJECT_ID ? "✅ 已配置" : "❌ 未配置");
-console.log("VITE_QWEATHER_API_KEY:", import.meta.env.VITE_QWEATHER_API_KEY ? "✅ 已配置" : "❌ 未配置");
-console.log("JWT认证可用:", hasJWTConfig ? "✅" : "❌");
-console.log("API Key认证可用:", hasAPIKeyConfig ? "✅" : "❌");
-console.log("和风天气总体可用:", hasQWeatherConfig ? "✅" : "❌");
-console.log("========================");
+import { getItboyWeather, getCachedWeather, setCachedWeather } from "@/api";
+import { 
+  Error, 
+  Sun, 
+  Cloudy, 
+  Fog, 
+  Lightning, 
+  HeavyRain, 
+  LightRain, 
+  Snowflake,
+  CloudyNight
+} from "@icon-park/vue-next";
 
 // 缓存时间（分钟）
 const cacheMinutes = parseInt(import.meta.env.VITE_WEATHER_CACHE_MINUTES) || 30;
@@ -66,91 +52,218 @@ const weatherData = reactive({
   },
 });
 
-// 获取用户大致位置（通过 IP 定位服务）
-const getUserLocation = async () => {
-  // 优先使用配置的默认城市
+// 天气类型到图标的映射
+const weatherIconMap = {
+  '晴': Sun,
+  '多云': Cloudy,
+  '阴': CloudyNight,
+  '雾': Fog,
+  '霾': Fog,
+  '雷': Lightning,
+  '雷阵雨': Lightning,
+  '大雨': HeavyRain,
+  '中雨': HeavyRain,
+  '小雨': LightRain,
+  '阵雨': LightRain,
+  '雪': Snowflake,
+  '小雪': Snowflake,
+  '中雪': Snowflake,
+  '大雪': Snowflake,
+  '雨夹雪': Snowflake,
+};
+
+// 根据天气类型获取对应图标
+const weatherIcon = computed(() => {
+  const weatherType = weatherData.weather.weather || '';
+  console.log("Current weather type:", weatherType); // Debug log
+  
+  // 精确匹配
+  if (weatherIconMap[weatherType]) {
+    return weatherIconMap[weatherType];
+  }
+  
+  // 模糊匹配
+  for (const [key, icon] of Object.entries(weatherIconMap)) {
+    if (weatherType.includes(key)) {
+      console.log("Matched icon for:", key);
+      return icon;
+    }
+  }
+  
+  // 默认返回太阳图标
+  return Sun;
+});
+
+// 获取默认城市（配置文件中的城市）
+const getDefaultCity = () => {
   const defaultCity = import.meta.env.VITE_WEATHER_CITY;
   if (defaultCity) {
     console.log("使用配置的默认城市:", defaultCity);
     return defaultCity;
   }
+  return "南京"; // 默认城市
+};
 
+// 获取当前地理位置
+const getCurrentPosition = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("浏览器不支持地理定位"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve(position),
+      (error) => reject(error),
+      { timeout: 5000, enableHighAccuracy: false }
+    );
+  });
+};
+
+// 通过坐标逆地理编码获取城市名（使用 Nominatim）
+const getCityFromCoords = async (lat, lon) => {
   try {
-    // 使用一个简单的 IP 定位服务获取城市名
-    const res = await fetch("https://ipapi.co/json/");
+    // 使用 zoom=8 获取城市级别信息（zoom 越小越宏观）
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=8&accept-language=zh`
+    );
     const data = await res.json();
-    console.log("IP定位结果:", data.city);
-    return data.city || "北京";
+    const address = data.address || {};
+    
+    console.log("Nominatim 返回地址信息:", address);
+    
+    // 尝试获取城市名，优先级：city > state_district > municipality
+    let city = address.city || address.state_district || address.municipality;
+    
+    // 如果获取到的是"区"结尾的（如"鼓楼区"），说明不是城市级别，需要跳过
+    if (city && city.endsWith("区")) {
+      console.log(`"${city}" 是区级地名，尝试其他字段...`);
+      // 尝试从 display_name 中提取城市名（通常格式：xx区, xx市, xx省, 中国）
+      const displayName = data.display_name || "";
+      const match = displayName.match(/([^,，]+[市])/);
+      if (match) {
+        city = match[1].trim().replace(/市$/, "");
+        console.log("从 display_name 提取到城市:", city);
+      } else {
+        // 直辖市处理
+        const directCities = ["北京", "上海", "天津", "重庆"];
+        const stateName = (address.state || "").replace(/市$/, "");
+        if (directCities.includes(stateName)) {
+          city = stateName;
+        } else {
+          city = null; // 无法获取城市名，将回退到 IP 定位
+        }
+      }
+    }
+    
+    // 最后尝试 town（镇级）
+    if (!city) {
+      city = address.town;
+    }
+    
+    if (city) {
+      // 去除"市"后缀
+      const cleanCity = city.replace(/市$/, "");
+      // 再次检查是否是区级地名
+      if (cleanCity.endsWith("区")) {
+        console.warn(`"${cleanCity}" 仍是区级地名，放弃使用`);
+        return null;
+      }
+      console.log("解析到城市名:", cleanCity);
+      return cleanCity;
+    }
+    
+    console.warn("无法从地址信息中解析城市名");
+    return null;
   } catch (error) {
-    console.warn("IP 定位失败，使用默认城市北京:", error);
-    return "北京"; // 默认城市
+    console.error("逆地理编码失败:", error);
+    return null;
   }
 };
 
-// 使用和风天气 API 获取天气
-const fetchQWeather = async () => {
+// 通过 IP 定位获取城市名（备选方案）
+const getCityFromIP = async () => {
   try {
-    // 1. 获取用户位置
-    const cityName = await getUserLocation();
+    console.log("尝试 IP 定位...");
+    const res = await fetch("http://ip-api.com/json/?lang=zh-CN");
+    const data = await res.json();
+    
+    if (data.status === "success" && data.city) {
+      // 去除"市"后缀
+      const city = data.city.replace(/市$/, "");
+      console.log("IP 定位城市:", city);
+      return city;
+    }
+    return null;
+  } catch (error) {
+    console.error("IP 定位失败:", error);
+    return null;
+  }
+};
 
-    // 2. 通过城市名获取 LocationID
-    const geoResult = await getQWeatherGeo(qweatherHost, cityName);
-    if (geoResult.code !== "200" || !geoResult.location?.length) {
-      throw new Error(`城市搜索失败: ${geoResult.code}`);
+// 获取当前位置的城市名
+const getLocationCity = async () => {
+  // 1. 首先尝试 GPS 定位
+  try {
+    console.log("正在获取当前位置 (GPS)...");
+    const position = await getCurrentPosition();
+    const { latitude, longitude } = position.coords;
+    console.log(`GPS 定位成功: ${latitude}, ${longitude}`);
+    
+    const city = await getCityFromCoords(latitude, longitude);
+    if (city) {
+      console.log("GPS 定位城市:", city);
+      return city;
+    }
+  } catch (error) {
+    console.warn("GPS 定位失败:", error.message);
+  }
+  
+  // 2. GPS 失败，尝试 IP 定位
+  try {
+    const city = await getCityFromIP();
+    if (city) {
+      return city;
+    }
+  } catch (error) {
+    console.warn("IP 定位也失败:", error.message);
+  }
+  
+  console.log("所有定位方式都失败，将使用默认城市");
+  return null;
+};
+
+// 使用 itboy 天气 API 获取天气
+const fetchItboyWeather = async (cityName) => {
+  try {
+    const result = await getItboyWeather(cityName);
+
+    // itboy API 返回格式处理
+    // status: 200 表示成功
+    // cityInfo: { city, updateTime, ... }
+    // data: { wendu, shidu, quality, forecast, ... }
+    if (result.status !== 200) {
+      throw new Error(result.message || "天气获取失败");
     }
 
-    const location = geoResult.location[0];
-    const locationId = location.id;
+    const forecast = result.data?.forecast?.[0] || {};
 
-    // 3. 获取实时天气
-    const weatherResult = await getQWeatherNow(qweatherHost, locationId);
-    if (weatherResult.code !== "200") {
-      throw new Error(`天气获取失败: ${weatherResult.code}`);
-    }
-
-    const now = weatherResult.now;
-
-    // 4. 组装天气数据
+    // 组装天气数据
     const data = {
       adCode: {
-        city: location.name,
-        adcode: locationId,
+        city: result.cityInfo?.city?.replace(/市$/, "") || cityName,
+        adcode: null,
       },
       weather: {
-        weather: now.text,
-        temperature: now.temp,
-        winddirection: now.windDir,
-        windpower: now.windScale,
+        weather: forecast.type || "未知",
+        temperature: result.data?.wendu || "--",
+        winddirection: forecast.fx || "未知",
+        windpower: forecast.fl?.replace(/<!\[CDATA\[/, "").replace(/\]\]>/, "").replace(/级/, "") || "--",
       },
     };
 
     return data;
   } catch (error) {
-    console.error("和风天气获取失败:", error);
-    throw error;
-  }
-};
-
-// 使用 wttr.in 备用 API 获取天气
-const fetchWttrWeather = async () => {
-  try {
-    const result = await getWttrWeather();
-    const current = result.current_condition[0];
-    const area = result.nearest_area[0];
-
-    return {
-      adCode: {
-        city: area.areaName[0].value || "未知地区",
-      },
-      weather: {
-        weather: current.lang_zh[0]?.value || current.weatherDesc[0]?.value,
-        temperature: current.temp_C,
-        winddirection: current.winddir16Point,
-        windpower: Math.round(current.windspeedKmph / 12) || 1, // 转换为风力等级
-      },
-    };
-  } catch (error) {
-    console.error("wttr.in 天气获取失败:", error);
+    console.error("itboy 天气获取失败:", error);
     throw error;
   }
 };
@@ -167,24 +280,22 @@ const getWeatherData = async () => {
       return;
     }
 
-    // 2. 尝试获取新数据
-    let data;
-
-    if (hasQWeatherConfig) {
-      // 使用和风天气 API
-      console.log("使用和风天气 API 获取天气数据", hasJWTConfig ? "(JWT认证)" : "(API Key认证)");
-      data = await fetchQWeather();
-    } else {
-      // 使用备用 API
-      console.log("未配置和风天气，使用 wttr.in 备用接口");
-      data = await fetchWttrWeather();
+    // 2. 尝试获取当前位置城市
+    let cityName = await getLocationCity();
+    if (!cityName) {
+      // 如果获取位置失败，使用默认城市
+      cityName = getDefaultCity();
     }
 
-    // 3. 更新数据并缓存
+    // 3. 获取天气数据
+    console.log(`使用 itboy 天气 API 获取 ${cityName} 的天气数据`);
+    const data = await fetchItboyWeather(cityName);
+
+    // 4. 更新数据并缓存
     weatherData.adCode = data.adCode;
     weatherData.weather = data.weather;
 
-    // 4. 缓存天气数据
+    // 5. 缓存天气数据
     setCachedWeather(data, cacheMinutes);
     console.log(`天气数据已缓存 ${cacheMinutes} 分钟`);
   } catch (error) {
@@ -210,3 +321,16 @@ onMounted(() => {
   getWeatherData();
 });
 </script>
+
+<style lang="scss" scoped>
+.weather {
+  display: flex;
+  align-items: center;
+  
+  .weather-icon {
+    margin-right: 4px;
+    display: flex;
+    align-items: center;
+  }
+}
+</style>

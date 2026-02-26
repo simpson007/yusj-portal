@@ -128,8 +128,12 @@ onMounted(() => {
       changePlayState();
     }
   });
-  // 挂载方法至 window
+  // 挂载方法至 window - 供音乐胶囊组件调用
   window.$openList = openMusicList;
+  window.$player = {
+    playToggle: changePlayState,
+    changeSong: changeMusicIndex,
+  };
 });
 
 // 监听音量变化

@@ -5,7 +5,6 @@
       <el-col :span="12">
         <div class="left">
           <Hitokoto />
-          <Music v-if="playerHasId" />
         </div>
       </el-col>
       <el-col :span="12">
@@ -31,7 +30,6 @@
 <script setup>
 import { getCurrentTime } from "@/utils/getTime";
 import { mainStore } from "@/store";
-import Music from "@/components/Music.vue";
 import Hitokoto from "@/components/Hitokoto.vue";
 import Weather from "@/components/Weather.vue";
 
@@ -123,9 +121,13 @@ onBeforeUnmount(() => {
         }
         .text {
           margin-top: 10px;
-          font-size: 3.25rem;
-          letter-spacing: 2px;
-          font-family: "UnidreamLED";
+          font-size: 2.5rem; // 减小字号
+          font-weight: 500; // 减轻字重
+          line-height: 1.2;
+          text-shadow: 0 0 20px rgba(0, 0, 0, 0.35);
+          font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+          font-variant-numeric: tabular-nums; // 数字等宽，防止跳动
+          letter-spacing: 1px;
         }
         @media (min-width: 1201px) and (max-width: 1280px) {
           font-size: 1rem;

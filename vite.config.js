@@ -94,6 +94,13 @@ export default ({ mode }) =>
     server: {
       port: "3000",
       open: true,
+      proxy: {
+        // itboy 天气 API 代理
+        "/api/weather": {
+          target: "http://t.weather.itboy.net",
+          changeOrigin: true,
+        },
+      },
     },
     resolve: {
       alias: [

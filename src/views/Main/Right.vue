@@ -9,6 +9,8 @@
     <Func />
     <!-- 网站链接 -->
     <Link />
+    <!-- 音乐胶囊 -->
+    <MusicBar />
   </div>
 </template>
 
@@ -16,6 +18,7 @@
 import { mainStore } from "@/store";
 import Func from "@/views/Func/index.vue";
 import Link from "@/components/Links.vue";
+import MusicBar from "@/components/MusicBar.vue";
 const store = mainStore();
 
 // 站点链接

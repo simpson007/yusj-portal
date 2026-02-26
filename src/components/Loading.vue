@@ -1,7 +1,28 @@
 <template>
   <div id="loader-wrapper" :class="store.imgLoadStatus ? 'loaded' : null">
     <div class="loader">
-      <div class="loader-circle" />
+      <div class="hexagram-container">
+        <!-- 外圈光环 -->
+        <svg class="outer-ring" viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="95" class="ring-bg" />
+          <circle cx="100" cy="100" r="95" class="ring-glow" />
+        </svg>
+        <!-- 六芒星 SVG -->
+        <svg class="hexagram" viewBox="0 0 200 200">
+          <!-- 正三角形（朝上） -->
+          <polygon
+            class="triangle triangle-up"
+            points="100,20 175,150 25,150"
+          />
+          <!-- 倒三角形（朝下） -->
+          <polygon
+            class="triangle triangle-down"
+            points="100,180 25,50 175,50"
+          />
+          <!-- 中心圆点 -->
+          <circle cx="100" cy="100" r="8" class="center-dot" />
+        </svg>
+      </div>
       <div class="loader-text">
         <span class="name">
           {{ siteName }}
@@ -42,41 +63,70 @@ const siteName = import.meta.env.VITE_SITE_NAME;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    .loader-circle {
+    
+    .hexagram-container {
+      position: relative;
       width: 150px;
       height: 150px;
-      border-radius: 50%;
-      border: 3px solid transparent;
-      border-top-color: #fff;
-      animation: spin 1.8s linear infinite;
       z-index: 2;
-
-      &:before {
-        content: "";
+      
+      .outer-ring {
         position: absolute;
-        top: 5px;
-        left: 5px;
-        right: 5px;
-        bottom: 5px;
-        border-radius: 50%;
-        border: 3px solid transparent;
-        border-top-color: #a4a4a4;
-        animation: spin-reverse 0.6s linear infinite;
+        width: 100%;
+        height: 100%;
+        animation: rotate-ring 8s linear infinite;
+        
+        .ring-bg {
+          fill: none;
+          stroke: rgba(255, 255, 255, 0.1);
+          stroke-width: 1;
+        }
+        
+        .ring-glow {
+          fill: none;
+          stroke: rgba(255, 255, 255, 0.6);
+          stroke-width: 2;
+          stroke-dasharray: 60 540;
+          stroke-linecap: round;
+          filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+        }
       }
-
-      &:after {
-        content: "";
+      
+      .hexagram {
         position: absolute;
-        top: 15px;
-        left: 15px;
-        right: 15px;
-        bottom: 15px;
-        border-radius: 50%;
-        border: 3px solid transparent;
-        border-top-color: #d3d3d3;
-        animation: spin 1s linear infinite;
+        width: 100%;
+        height: 100%;
+        animation: pulse 2s ease-in-out infinite;
+        
+        .triangle {
+          fill: none;
+          stroke-width: 2;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-dasharray: 500;
+          filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+        }
+        
+        .triangle-up {
+          stroke: rgba(255, 255, 255, 0.9);
+          stroke-dashoffset: 500;
+          animation: draw-triangle 2s ease-out forwards, glow 2s ease-in-out infinite 2s;
+        }
+        
+        .triangle-down {
+          stroke: rgba(200, 180, 140, 0.9);
+          stroke-dashoffset: 500;
+          animation: draw-triangle 2s ease-out 0.5s forwards, glow 2s ease-in-out infinite 2.5s;
+        }
+        
+        .center-dot {
+          fill: rgba(255, 255, 255, 0);
+          animation: fade-in-dot 0.5s ease-out 1.5s forwards, pulse-dot 1.5s ease-in-out infinite 2s;
+          filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+        }
       }
     }
+
     .loader-text {
       display: flex;
       flex-direction: column;
@@ -113,7 +163,7 @@ const siteName = import.meta.env.VITE_SITE_NAME;
       transform 0.3s 1s ease-out,
       visibility 0.3s 1s ease-out;
     .loader {
-      .loader-circle,
+      .hexagram-container,
       .loader-text {
         opacity: 0;
         transition: opacity 0.3s ease-out;
@@ -132,7 +182,18 @@ const siteName = import.meta.env.VITE_SITE_NAME;
   }
 }
 
-@keyframes spin {
+// 绘制三角形动画
+@keyframes draw-triangle {
+  0% {
+    stroke-dashoffset: 500;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+// 外圈旋转
+@keyframes rotate-ring {
   0% {
     transform: rotate(0deg);
   }
@@ -141,12 +202,48 @@ const siteName = import.meta.env.VITE_SITE_NAME;
   }
 }
 
-@keyframes spin-reverse {
+// 六芒星脉冲
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+// 发光效果
+@keyframes glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(255, 255, 255, 1));
+  }
+}
+
+// 中心点渐入
+@keyframes fade-in-dot {
   0% {
-    transform: rotate(0deg);
+    fill: rgba(255, 255, 255, 0);
+    r: 0;
   }
   100% {
-    transform: rotate(-360deg);
+    fill: rgba(255, 255, 255, 0.9);
+    r: 8;
+  }
+}
+
+// 中心点脉冲
+@keyframes pulse-dot {
+  0%, 100% {
+    fill: rgba(255, 255, 255, 0.9);
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+  }
+  50% {
+    fill: rgba(200, 180, 140, 0.9);
+    filter: drop-shadow(0 0 15px rgba(200, 180, 140, 1));
   }
 }
 </style>
+

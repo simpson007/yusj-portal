@@ -1,6 +1,5 @@
 // import axios from "axios";
 import fetchJsonp from "fetch-jsonp";
-import { SignJWT, importPKCS8 } from "jose";
 
 /**
  * 音乐播放器
@@ -51,115 +50,75 @@ export const getHitokoto = async () => {
 };
 
 /**
- * 天气 - 和风天气 API (JWT 认证)
- * 文档: https://dev.qweather.com/docs/api/
+ * 天气 - itboy 天气 API
+ * 文档: https://www.tianqiapi.com/
+ * 使用 itboy 免费天气接口
  */
 
-// JWT Token 缓存（避免重复生成）
-let cachedJWT = null;
-let jwtExpireTime = 0;
-
-// 生成和风天气 JWT Token
-const generateQWeatherJWT = async (privateKey, keyId, projectId) => {
-  try {
-    // 检查缓存的 JWT 是否还有效（提前 60 秒过期以留出余量）
-    const now = Math.floor(Date.now() / 1000);
-    if (cachedJWT && jwtExpireTime > now + 60) {
-      return cachedJWT;
-    }
-
-    // 导入私钥
-    const key = await importPKCS8(privateKey, "EdDSA");
-
-    // 设置时间（iat 提前 30 秒，exp 设置为 15 分钟后）
-    const iat = now - 30;
-    const exp = now + 900; // 15 分钟有效期
-
-    // 生成 JWT
-    const jwt = await new SignJWT({
-      sub: projectId,
-      iat: iat,
-      exp: exp,
-    })
-      .setProtectedHeader({
-        alg: "EdDSA",
-        kid: keyId,
-      })
-      .sign(key);
-
-    // 缓存 JWT
-    cachedJWT = jwt;
-    jwtExpireTime = exp;
-
-    return jwt;
-  } catch (error) {
-    console.error("生成 JWT 失败:", error);
-    throw error;
-  }
+// 常用城市代码映射表
+const CITY_CODE_MAP = {
+  "北京": "101010100",
+  "上海": "101020100",
+  "广州": "101280101",
+  "深圳": "101280601",
+  "杭州": "101210101",
+  "南京": "101190101",
+  "成都": "101270101",
+  "武汉": "101200101",
+  "西安": "101110101",
+  "重庆": "101040100",
+  "天津": "101030100",
+  "苏州": "101190401",
+  "郑州": "101180101",
+  "长沙": "101250101",
+  "青岛": "101120201",
+  "大连": "101070201",
+  "厦门": "101230201",
+  "福州": "101230101",
+  "济南": "101120101",
+  "沈阳": "101070101",
+  "合肥": "101220101",
+  "昆明": "101290101",
+  "南昌": "101240101",
+  "太原": "101100101",
+  "南宁": "101300101",
+  "贵阳": "101260101",
+  "兰州": "101160101",
+  "石家庄": "101090101",
+  "长春": "101060101",
+  "哈尔滨": "101050101",
+  "呼和浩特": "101080101",
+  "乌鲁木齐": "101130101",
+  "拉萨": "101140101",
+  "西宁": "101150101",
+  "银川": "101170101",
+  "海口": "101310101",
+  "香港": "101320101",
+  "澳门": "101330101",
+  "台北": "101340101",
 };
 
-// 获取认证头（JWT 或 API Key）
-const getAuthHeaders = async () => {
-  // 获取私钥并处理换行符（.env 中 \n 是字符串，需要转换为实际换行）
-  let privateKey = import.meta.env.VITE_QWEATHER_PRIVATE_KEY;
-  console.log("原始私钥:", JSON.stringify(privateKey));
-  if (privateKey) {
-    // 尝试多种换行符处理方式
-    privateKey = privateKey
-      .replace(/\\n/g, "\n")  // 处理字面 \n
-      .replace(/\\r/g, "\r")  // 处理字面 \r
-      .trim();
+// 获取城市代码
+const getCityCode = (cityName) => {
+  // 尝试精确匹配
+  if (CITY_CODE_MAP[cityName]) {
+    return CITY_CODE_MAP[cityName];
   }
-  console.log("处理后私钥:", JSON.stringify(privateKey));
-  const keyId = import.meta.env.VITE_QWEATHER_KEY_ID;
-  const projectId = import.meta.env.VITE_QWEATHER_PROJECT_ID;
-  const apiKey = import.meta.env.VITE_QWEATHER_API_KEY;
-
-  // 优先使用 JWT 认证
-  if (privateKey && keyId && projectId) {
-    const jwt = await generateQWeatherJWT(privateKey, keyId, projectId);
-    return {
-      Authorization: `Bearer ${jwt}`,
-    };
+  // 尝试移除 "市" 后缀匹配
+  const cleanName = cityName.replace(/市$/, "");
+  if (CITY_CODE_MAP[cleanName]) {
+    return CITY_CODE_MAP[cleanName];
   }
-
-  // 降级到 API Key 认证
-  if (apiKey) {
-    return {
-      "X-QW-Api-Key": apiKey,
-    };
-  }
-
-  throw new Error("未配置和风天气认证信息（JWT 或 API Key）");
+  // 默认返回北京
+  console.warn(`未找到城市 "${cityName}" 的代码，使用北京作为默认值`);
+  return "101010100";
 };
 
-// 和风天气 - 城市搜索（根据城市名或坐标获取 LocationID）
-export const getQWeatherGeo = async (host, location) => {
-  const headers = await getAuthHeaders();
-  const res = await fetch(
-    `https://${host}/geo/v2/city/lookup?location=${encodeURIComponent(location)}&range=cn&number=1`,
-    { headers },
-  );
-  return await res.json();
-};
-
-// 和风天气 - 实时天气
-export const getQWeatherNow = async (host, locationId) => {
-  const headers = await getAuthHeaders();
-  const res = await fetch(
-    `https://${host}/v7/weather/now?location=${locationId}`,
-    { headers },
-  );
-  return await res.json();
-};
-
-/**
- * 天气 - 备用 API
- */
-
-// 获取 wttr.in 天气 API（免费，支持 IP 自动定位，作为备用）
-export const getWttrWeather = async () => {
-  const res = await fetch("https://wttr.in/?format=j1&lang=zh");
+// 获取 itboy 天气数据（通过城市代码）
+export const getItboyWeather = async (city) => {
+  const cityCode = getCityCode(city);
+  // 使用 Vite 代理解决 CORS 问题
+  const res = await fetch(`/api/weather/city/${cityCode}`);
   return await res.json();
 };
 

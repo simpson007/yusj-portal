@@ -19,16 +19,19 @@
     </Transition>
     <!-- 一言内容 -->
     <Transition name="el-fade-in-linear" mode="out-in">
-      <div :key="hitokotoData.text" class="content" @click="updateHitokoto">
-        <span class="text">{{ hitokotoData.text }}</span>
-        <span class="from">-「&nbsp;{{ hitokotoData.from }}&nbsp;」</span>
+      <div :key="hitokotoData.text" class="content">
+        <span class="text" @click="copyHitokoto" title="点击复制">{{ hitokotoData.text }}</span>
+        <div class="bottom-row">
+          <span class="from">-「&nbsp;{{ hitokotoData.from }}&nbsp;」</span>
+          <refresh theme="outline" size="16" fill="#ffffff80" class="refresh-btn" @click="updateHitokoto" title="换一句" />
+        </div>
       </div>
     </Transition>
   </div>
 </template>
 
 <script setup>
-import { MusicMenu, Error } from "@icon-park/vue-next";
+import { MusicMenu, Error, Refresh, CheckOne } from "@icon-park/vue-next";
 import { getHitokoto } from "@/api";
 import { mainStore } from "@/store";
 import debounce from "@/utils/debounce.js";
@@ -71,6 +74,29 @@ const updateHitokoto = () => {
   }, 500);
 };
 
+// 复制格言到剪贴板
+const copyHitokoto = async () => {
+  try {
+    const textToCopy = `${hitokotoData.text} —— ${hitokotoData.from}`;
+    await navigator.clipboard.writeText(textToCopy);
+    ElMessage({
+      message: "格言已复制到剪贴板",
+      icon: h(CheckOne, {
+        theme: "filled",
+        fill: "#efefef",
+      }),
+    });
+  } catch (error) {
+    ElMessage({
+      message: "复制失败，请手动复制",
+      icon: h(Error, {
+        theme: "filled",
+        fill: "#efefef",
+      }),
+    });
+  }
+};
+
 onMounted(() => {
   getHitokotoData();
 });
@@ -109,19 +135,43 @@ onMounted(() => {
     flex-direction: column;
     justify-content: space-evenly;
     .text {
-      font-size: 1.1rem;
+      font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+      font-size: 1.15rem;
+      line-height: 1.6;
       word-break: break-all;
       text-overflow: ellipsis;
       overflow: hidden;
       display: -webkit-box;
       -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
+      cursor: pointer;
+      transition: text-shadow 0.3s;
+      &:hover {
+        text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+      }
+      &:active {
+        opacity: 0.8;
+      }
+    }
+    .bottom-row {
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     .from {
-      margin-top: 10px;
+      font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
       font-weight: bold;
-      align-self: flex-end;
       font-size: 1.1rem;
+    }
+    .refresh-btn {
+      cursor: pointer;
+      opacity: 0.5;
+      transition: all 0.3s;
+      &:hover {
+        opacity: 1;
+        transform: rotate(180deg);
+      }
     }
   }
 }

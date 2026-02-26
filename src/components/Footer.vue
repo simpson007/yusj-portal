@@ -3,7 +3,6 @@
     <Transition name="fade" mode="out-in">
       <div v-if="!store.playerState || !store.playerLrcShow" class="power">
         <span>
-          <span :class="startYear < fullYear ? 'c-hidden' : 'hidden'">Copyright&nbsp;</span>
           &copy;
           <span v-if="startYear < fullYear"
             class="site-start">
@@ -11,19 +10,12 @@
             -
           </span>
           {{ fullYear }}
-          <a :href="siteUrl">{{ siteAuthor }}</a>
-        </span>
-        <!-- 以下信息请不要修改哦 -->
-        <span class="hidden">
-          &amp;&nbsp;Made&nbsp;by
-          <a :href="config.github" target="_blank">
-            {{ config.author }}
-          </a>
+          By {{ siteAuthor }}
         </span>
         <!-- 站点备案 -->
-        <span>
-          &amp;
-          <a v-if="siteIcp" href="https://beian.miit.gov.cn" target="_blank">
+        <span v-if="siteIcp">
+          &nbsp;
+          <a href="https://beian.miit.gov.cn" target="_blank">
             {{ siteIcp }}
           </a>
         </span>
@@ -59,7 +51,7 @@ const siteIcp = ref(import.meta.env.VITE_SITE_ICP);
 const siteAuthor = ref(import.meta.env.VITE_SITE_AUTHOR);
 const siteUrl = computed(() => {
   const url = import.meta.env.VITE_SITE_URL;
-  if (!url) return "https://www.imsyy.top";
+  if (!url) return "https://yushenjian.com";
   // 判断协议前缀
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     return "//" + url;
@@ -78,6 +70,8 @@ const siteUrl = computed(() => {
   line-height: 46px;
   text-align: center;
   z-index: 0;
+  margin: 0;
+  opacity: 0.6;
   font-size: 14px;
   // 文字不换行
   word-break: keep-all;
